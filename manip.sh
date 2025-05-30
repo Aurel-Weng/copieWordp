@@ -126,11 +126,7 @@ if [ "$OPTIONS" == "-f" ] || [ "$OPTIONS" == "--forminator" ] || [ "$OPTIONS" ==
     fi
 fi
 
-echo "Change permissions for /var/lib/mysql-files"
 chmod -R 777 /var/lib/mysql-files
-ls -la /var/lib/mysql-files/cegsksae
-
-rm -rf /var/lib/mysql-files/$NAME_SITE/contest/new_posts.csv
 
 # Execute the php script
 php add_bdd.php $OPTIONS $NAME_SITE $DB_NAME $DB_USER $DB_PASS

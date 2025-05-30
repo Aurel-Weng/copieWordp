@@ -181,10 +181,6 @@ function change_idPostMeta($dossier, $categorie){
 
         while ($ligne_new = fgetcsv($new, null, "\n")) {
             $data = explode(',', $ligne_new[0]);
- 
-            echo "Comparaison des données :\n";
-            echo "Ancien ID: " . $old_data[0] . "\n";
-            echo "Nouveau ID: " . $data[0] . "\n";
 
             if ( strcasecmp(trim($data[2], '"'),trim($old_data[2], '"'))==0 && strcasecmp(trim($data[5], '"'),trim($old_data[5], '"'))==0 && strcasecmp(trim($data[11], '"'),trim($old_data[11], '"'))==0 ) {
                 $replace_id[$old_data[0]] = $data[0];
@@ -387,6 +383,29 @@ function add_data_forminator($bdd, $dossier) {
     $bdd->exec($reqAddEntryMeta);
 }
 
+function add_data_contest($bdd, $dossier) {
+    // delete old contest
+    $reqSuppContest = "DELETE FROM `hr8qI_fca_cc_activity_tbl`";
+    $bdd->exec($reqSuppContest);
+
+    // add new contest
+    $reqAddContest = "LOAD DATA INFILE '/var/lib/mysql-files/$dossier/contest/new_posts.csv'
+        INTO TABLE `hr8qI_fca_cc_activity_tbl`
+        FIELDS TERMINATED BY ',' 
+        OPTIONALLY ENCLOSED BY '\"'
+        LINES TERMINATED BY '\\n'
+        IGNORE 1 ROWS
+        (`id`, `contest`, `name`, `email`, `time`, `ip`, `status`)
+        SET id = id,
+            contest = contest,
+            name = name,
+            email = email,
+            time = time,
+            ip = ip,
+            status = status";
+    $bdd->exec($reqAddContest);
+}
+
 // Check if the script is run with the correct number of arguments
 if (!($argc = 6 && $argv[1] != " " && $argv[2] != " " && $argv[3] != " " && $argv[4] != " " && $argv[5] != " ")) {
     echo "Usage: php add_bdd.php <option> <nom_site> <database_name> <username> <password>";
@@ -407,33 +426,14 @@ try {
     die();
 }
 
-if ($argv[1] == "-a" || $argv[1] == "--all") {
-    echo "Adding users...\n";
-    add_users($conn, $argv[2]);
-
-    echo "Getting users...\n";
-    get_users($conn, $argv[2]);
-
-    add_usermeta($conn, $argv[2]);
-
-
-    echo "Adding posts...\n";
-    add_posts($conn, $argv[2]);
-
-    echo "Getting posts...\n";
-    get_posts($conn, $argv[2]);
-
-    echo "Adding postmeta...\n";
-    add_postmeta($conn, $argv[2]);
-}
-else if ($argv[1] == "-p" || $argv[1] == "--posts") {
+if ($argv[1] == "-p" || $argv[1] == "--posts" || $argv[1] == "-a" || $argv[1] == "--all") {
     echo "Adding posts...\n";
     add_posts($conn, $argv[2]);
 
     echo "Getting posts...\n";
     get_posts($conn, $argv[2]);
 }
-else if ($argv[1] == "-u" || $argv[1] == "--user") {
+if ($argv[1] == "-u" || $argv[1] == "--user" || $argv[1] == "-a" || $argv[1] == "--all") {
     echo "Adding users...\n";
     add_users($conn, $argv[2]);
 
@@ -442,17 +442,20 @@ else if ($argv[1] == "-u" || $argv[1] == "--user") {
 
     add_usermeta($conn, $argv[2]);
 }
-else if ($argv[1] == "-f" || $argv[1] == "--forminator") {
+if ($argv[1] == "-f" || $argv[1] == "--forminator" || $argv[1] == "-a" || $argv[1] == "--all") {
     echo "Change dates forminator...\n";
     add_date_forminator($argv[2]);
 
     echo "Adding data forminator...\n";
     add_data_forminator($conn, $argv[2]);
 }
-else if ($argv[1] == "-c" || $argv[1] == "--contest") {
+if ($argv[1] == "-c" || $argv[1] == "--contest" || $argv[1] == "-a" || $argv[1] == "--all") {
     echo "Getting contest...\n";
-    // get_contest($conn, $argv[2]);
+    get_contest($conn, $argv[2]);
 
     echo "Changing ID postmeta...\n";
     change_idPostMeta($argv[2], 'contest');
+
+    echo "Adding contest...\n";
+    add_data_contest($conn, $argv[2]);
 }
