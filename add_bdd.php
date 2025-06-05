@@ -416,18 +416,22 @@ function add_data_contest($bdd, $dossier) {
 
 function is_valid_option_string($str) {
     if (empty($str)) {
-        return false;
+        die(" Erreur: l'option ne doit pas être vide.\n");
     }
+
     // Only allow letters p, u, f, c, each at most once
     if (!preg_match('/^[pufc]{1,4}$/', $str)) {
-        return false;
+        if ($str !== 'a' && $str !== 'h') {
+            die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, chacune au plus une fois. Ou alors seulement a ou h.\n");
+        }
     }
     // Check for duplicates
     $letters = str_split($str);
     if (count($letters) !== count(array_unique($letters))) {
-        return false;
+        die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, chacune au plus une fois.\n");
     }
     return true;
+    // die("L'option est valide.\n");
 }
 
 
@@ -436,6 +440,12 @@ if (!($argc = 6 && $argv[1] != " " && $argv[2] != " " && $argv[3] != " " && $arg
     echo "Usage: php add_bdd.php <option> <nom_site> <database_name> <username> <password>";
     die();
 }
+
+// Validate the option string
+if (substr($argv[1], 0, 1) !== '-') {
+    die("Erreur: l'option doit commencer par un '-'.\n");
+}
+is_valid_option_string(substr($argv[1], 1));
 
 // Connect to the database
 try {
