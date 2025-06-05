@@ -42,8 +42,8 @@ function get_contest($bdd, $dossier) {
     $bdd->exec($reqGetContest);
 }
 
-function add_usermeta($bdd, $dossier){
-    // Change ids in usermeta
+function change_idUserMeta($dossier){
+        // Change ids in usermeta
     $old = fopen("/var/lib/mysql-files/$dossier/old_users.csv", 'r');
     $meta = fopen("./$dossier/usermeta.csv", 'r');
 
@@ -87,6 +87,10 @@ function add_usermeta($bdd, $dossier){
 
     fclose($meta);
     fclose($output);
+}
+
+function add_usermeta($bdd, $dossier){
+    change_idUserMeta($dossier);
 
     // Add usermeta to database
     echo "Ajout des usermeta à la base de données\n";
@@ -410,6 +414,23 @@ function add_data_contest($bdd, $dossier) {
     $bdd->exec($reqAddContest);
 }
 
+function is_valid_option_string($str) {
+    if (empty($str)) {
+        return false;
+    }
+    // Only allow letters p, u, f, c, each at most once
+    if (!preg_match('/^[pufc]{1,4}$/', $str)) {
+        return false;
+    }
+    // Check for duplicates
+    $letters = str_split($str);
+    if (count($letters) !== count(array_unique($letters))) {
+        return false;
+    }
+    return true;
+}
+
+
 // Check if the script is run with the correct number of arguments
 if (!($argc = 6 && $argv[1] != " " && $argv[2] != " " && $argv[3] != " " && $argv[4] != " " && $argv[5] != " ")) {
     echo "Usage: php add_bdd.php <option> <nom_site> <database_name> <username> <password>";
@@ -429,6 +450,9 @@ try {
     echo "Error: " . $e->getMessage();
     die();
 }
+
+// Changer comment fonctionne argv[2] il doit être égal à -a ou alors contenir - puis soit p, -u, -f, -c et plusieurs possible
+// Supprimer les --all....
 
 if ($argv[1] == "-p" || $argv[1] == "--posts" || $argv[1] == "-a" || $argv[1] == "--all") {
     echo "Adding posts...\n";
