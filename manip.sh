@@ -44,12 +44,6 @@ DB_NAME=$3
 DB_USER=$4
 DB_PASS=$5
 
-# Check if the user has provided a valid option
-if [[ "$1" != "-u" && "$1" != "-p" && "$1" != "-f" && "$1" != "-c" && "$1" != "-a" && "$1" != "-h" ]]; then
-    echo "Error: Invalid option. Use -u, -p, -a, -h."
-    exit 1
-fi
-
 # Create directory in mysql-files if it doesn't exist
 if [ ! -d "/var/lib/mysql-files/$NAME_SITE" ]; then
     echo "Creating directory /var/lib/mysql-files/$NAME_SITE"
