@@ -20,6 +20,13 @@
 
 # /var/lib/mysql-files/$NAME_SITE/
 
+# Check if a specific character is present exactly once in $OPTIONS
+contains_char_once() {
+    local char="$1"
+    local count
+    count=$(echo -n "$OPTIONS" | awk -v c="$char" 'BEGIN{n=0} {for(i=1;i<=length;i++) if(substr($0,i,1)==c) n++} END{print n}')
+    [ "$count" -eq 1 ]
+}
 
 # Help message
 if [ "$#" -eq 0 ] || ( [ "$#" -eq 1 ] && { [ "$1" == "-h" ] || [ "$1" == "--help" ]; } ); then
@@ -49,17 +56,13 @@ if [ ! -d "/var/lib/mysql-files/$NAME_SITE" ]; then
     echo "Creating directory /var/lib/mysql-files/$NAME_SITE"
     mkdir -p /var/lib/mysql-files/$NAME_SITE
 fi
-if [ ! -d "/var/lib/mysql-files/$NAME_SITE/forminator" ]; then
-    echo "Creating directory /var/lib/mysql-files/$NAME_SITE/forminator"
-    mkdir -p /var/lib/mysql-files/$NAME_SITE/forminator
-fi
 if [ ! -d "/var/lib/mysql-files/$NAME_SITE/contest" ]; then
     echo "Creating directory /var/lib/mysql-files/$NAME_SITE/contest"
     mkdir -p /var/lib/mysql-files/$NAME_SITE/contest
 fi
 
 # Check if the CSV files exist
-if [ "$OPTIONS" == "-u" ] || [ "$OPTIONS" == "-a" ]; then
+if contains_char_once "u" || [ "$OPTIONS" == "-a" ]; then
     if [ ! -f "./$NAME_SITE/old_users.csv" ]; then
         echo "Error: old_users.csv file not found in /$NAME_SITE"
         exit 1
@@ -75,7 +78,7 @@ if [ "$OPTIONS" == "-u" ] || [ "$OPTIONS" == "-a" ]; then
         echo "usermeta.csv file found in /$NAME_SITE"
     fi
 fi
-if [ "$OPTIONS" == "-p" ] || [ "$OPTIONS" == "-a" ]; then
+if contains_char_once "p" || [ "$OPTIONS" == "-a" ]; then
     if [ ! -f "./$NAME_SITE/old_posts.csv" ]; then
         echo "Error: old_posts.csv file not found in /$NAME_SITE"
         exit 1
@@ -89,7 +92,13 @@ if [ "$OPTIONS" == "-p" ] || [ "$OPTIONS" == "-a" ]; then
         echo "postmeta.csv file found in /$NAME_SITE"
     fi
 fi
-if [ "$OPTIONS" == "-f" ] || [ "$OPTIONS" == "-a" ]; then
+if contains_char_once "f" || [ "$OPTIONS" == "-a" ]; then
+    # Check if the forminator directory exists
+    if [ ! -d "/var/lib/mysql-files/$NAME_SITE/forminator" ]; then
+        echo "Creating directory /var/lib/mysql-files/$NAME_SITE/forminator"
+        mkdir -p /var/lib/mysql-files/$NAME_SITE/forminator
+    fi
+
     if [ ! -f "./$NAME_SITE/forminator/old_views.csv" ]; then
         echo "Error: old_views.csv file not found in /$NAME_SITE/forminator"
         exit 1
