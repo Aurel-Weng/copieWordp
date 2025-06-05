@@ -45,8 +45,8 @@ DB_USER=$4
 DB_PASS=$5
 
 # Check if the user has provided a valid option
-if [[ "$1" != "-u" && "$1" != "--user" && "$1" != "-p" && "$1" != "--post" && "$1" != "-f" && "$1" != "--forminator" && "$1" != "-c" && "$1" != "--contest" && "$1" != "-a" && "$1" != "--all" && "$1" != "-h" && "$1" != "--help" ]]; then
-    echo "Error: Invalid option. Use -u, --user, -p, --post, -a or --all, -h or --help."
+if [[ "$1" != "-u" && "$1" != "-p" && "$1" != "-f" && "$1" != "-c" && "$1" != "-a" && "$1" != "-h" ]]; then
+    echo "Error: Invalid option. Use -u, -p, -a, -h."
     exit 1
 fi
 
@@ -65,7 +65,7 @@ if [ ! -d "/var/lib/mysql-files/$NAME_SITE/contest" ]; then
 fi
 
 # Check if the CSV files exist
-if [ "$OPTIONS" == "-u" ] || [ "$OPTIONS" == "--user" ] || [ "$OPTIONS" == "-a" ] || [ "$OPTIONS" == "--all" ]; then
+if [ "$OPTIONS" == "-u" ] || [ "$OPTIONS" == "-a" ]; then
     if [ ! -f "./$NAME_SITE/old_users.csv" ]; then
         echo "Error: old_users.csv file not found in /$NAME_SITE"
         exit 1
@@ -81,7 +81,7 @@ if [ "$OPTIONS" == "-u" ] || [ "$OPTIONS" == "--user" ] || [ "$OPTIONS" == "-a" 
         echo "usermeta.csv file found in /$NAME_SITE"
     fi
 fi
-if [ "$OPTIONS" == "-p" ] || [ "$OPTIONS" == "--post" ] || [ "$OPTIONS" == "-a" ] || [ "$OPTIONS" == "--all" ]; then
+if [ "$OPTIONS" == "-p" ] || [ "$OPTIONS" == "-a" ]; then
     if [ ! -f "./$NAME_SITE/old_posts.csv" ]; then
         echo "Error: old_posts.csv file not found in /$NAME_SITE"
         exit 1
@@ -95,7 +95,7 @@ if [ "$OPTIONS" == "-p" ] || [ "$OPTIONS" == "--post" ] || [ "$OPTIONS" == "-a" 
         echo "postmeta.csv file found in /$NAME_SITE"
     fi
 fi
-if [ "$OPTIONS" == "-f" ] || [ "$OPTIONS" == "--forminator" ] || [ "$OPTIONS" == "-a" ] || [ "$OPTIONS" == "--all" ]; then
+if [ "$OPTIONS" == "-f" ] || [ "$OPTIONS" == "-a" ]; then
     if [ ! -f "./$NAME_SITE/forminator/old_views.csv" ]; then
         echo "Error: old_views.csv file not found in /$NAME_SITE/forminator"
         exit 1
