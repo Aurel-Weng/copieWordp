@@ -7,14 +7,14 @@ function add_users($bdd, $dossier) {
         OPTIONALLY ENCLOSED BY '\"'
         LINES TERMINATED BY '\\n'
         IGNORE 1 ROWS
-        (@ID, `user_login`, `user_pass`, `user_nicename`, `user_email`, `user_url`, `user_registered`, `user_status`, `display_name`)
+        (@ID, `user_login`, `user_pass`, `user_nicename`, `user_email`, `user_url`, `user_registered`, `user_activation_key`, `user_status`, `display_name`)
         SET user_login = user_login,
             user_pass = user_pass,
             user_nicename = user_nicename,
             user_email = user_email,
             user_url = user_url,
             user_registered = user_registered,
-            user_activation_key = '',
+            user_activation_key = user_activation_key,
             user_status = user_status,
             display_name = display_name";
 
@@ -60,26 +60,27 @@ function add_usermeta($bdd, $dossier){
         while ($ligne_new = fgetcsv($new, null, ';')) {
             $data = explode(',', $ligne_new[0]);
 
-            if (!strcmp($data[1],$old_data[4])) {
-            $replace_id[$old_data[0]] = $data[0];
+            if (!strcmp(trim($data[1], '"'),trim($old_data[4], '"'))) {
+                $replace_id[$old_data[0]] = trim($data[0], '"');
                 break;
             }
         }
         fclose($new);
     }
+    var_dump($replace_id);
 
     // Rewrite usermeta with new IDs
     echo "Réécriture du fichier meta avec les nouveaux IDs\n";
     $output = fopen("/var/lib/mysql-files/$dossier/meta_user_updated.csv", 'w');
-    fputcsv($output, ["user_id","meta_key","meta_value"], ',');
+    fputcsv($output, ["id","user_id","meta_key","meta_value"], ',');
 
     while ($ligne_meta = fgetcsv($meta, null, ',')) {
-        if (isset($replace_id[$ligne_meta[0]])) {
-            $ligne_meta[0] = $replace_id[$ligne_meta[0]];
+        if (isset($replace_id[$ligne_meta[1]])) {
+            $ligne_meta[1] = $replace_id[$ligne_meta[1]];
         }
         
         // Replace Kg0768AR0
-        $ligne_meta[1] = str_replace("Kg0768AR0", "hr8qI", $ligne_meta[1]);
+        $ligne_meta[2] = str_replace("Kg0768AR0", "hr8qI", $ligne_meta[2]);
 
         fputcsv($output, $ligne_meta, ',');
     }
@@ -92,10 +93,13 @@ function add_usermeta($bdd, $dossier){
     $reqPushUserMeta = "LOAD DATA INFILE '/var/lib/mysql-files/$dossier/meta_user_updated.csv'
         INTO TABLE `hr8qI_usermeta`
         FIELDS TERMINATED BY ',' 
-        ENCLOSED BY '\"'
+        OPTIONALLY ENCLOSED BY '\"'
         LINES TERMINATED BY '\\n'
         IGNORE 1 ROWS
-        (`user_id`, `meta_key`, `meta_value`)";
+        (@id, `user_id`, `meta_key`, `meta_value`)
+        SET user_id = user_id,
+            meta_key = meta_key,
+            meta_value = meta_value";
     $bdd->exec($reqPushUserMeta);
 }
 
@@ -161,13 +165,13 @@ function change_idPostMeta($dossier, $categorie){
         $new = fopen("/var/lib/mysql-files/$dossier/contest/new_post.csv", 'r');
 
         // Output file for updated contest data
-        $output = fopen("/var/lib/mysql-files/$dossier/contest/new_posts.csv", 'w');
+        $output = fopen("/var/lib/mysql-files/$dossier/contest/contest_data.csv", 'w');
         $meta = fopen("./$dossier/contest/old_fca_cc_activity_tbl.csv" , 'r');
     } else {
         $old = fopen("/var/lib/mysql-files/$dossier/old_posts.csv", 'r');
         $new = fopen("/var/lib/mysql-files/$dossier/new_posts.csv", 'r');
 
-        $output = fopen("/var/lib/mysql-files/$dossier/new_posts.csv", 'w');
+        $output = fopen("/var/lib/mysql-files/$dossier/postmeta.csv", 'w');
         $meta = fopen("./$dossier/postmeta.csv", 'r');
     }
     $replace_id = [];
@@ -389,7 +393,7 @@ function add_data_contest($bdd, $dossier) {
     $bdd->exec($reqSuppContest);
 
     // add new contest
-    $reqAddContest = "LOAD DATA INFILE '/var/lib/mysql-files/$dossier/contest/new_posts.csv'
+    $reqAddContest = "LOAD DATA INFILE '/var/lib/mysql-files/$dossier/contest/contest_data.csv'
         INTO TABLE `hr8qI_fca_cc_activity_tbl`
         FIELDS TERMINATED BY ',' 
         OPTIONALLY ENCLOSED BY '\"'
@@ -432,14 +436,18 @@ if ($argv[1] == "-p" || $argv[1] == "--posts" || $argv[1] == "-a" || $argv[1] ==
 
     echo "Getting posts...\n";
     get_posts($conn, $argv[2]);
+
+    echo "Adding postmeta...\n";
+    add_postmeta($conn, $argv[2]);
 }
 if ($argv[1] == "-u" || $argv[1] == "--user" || $argv[1] == "-a" || $argv[1] == "--all") {
     echo "Adding users...\n";
-    add_users($conn, $argv[2]);
+    // add_users($conn, $argv[2]);
 
     echo "Getting users...\n";
-    get_users($conn, $argv[2]);
+    // get_users($conn, $argv[2]);
 
+    echo "Adding usermeta...\n";
     add_usermeta($conn, $argv[2]);
 }
 if ($argv[1] == "-f" || $argv[1] == "--forminator" || $argv[1] == "-a" || $argv[1] == "--all") {

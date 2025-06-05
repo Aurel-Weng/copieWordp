@@ -83,13 +83,13 @@ if [ "$OPTIONS" == "-u" ] || [ "$OPTIONS" == "--user" ] || [ "$OPTIONS" == "-a" 
 fi
 if [ "$OPTIONS" == "-p" ] || [ "$OPTIONS" == "--post" ] || [ "$OPTIONS" == "-a" ] || [ "$OPTIONS" == "--all" ]; then
     if [ ! -f "./$NAME_SITE/old_posts.csv" ]; then
-        echo "Error: wp_posts.csv file not found in /$NAME_SITE"
+        echo "Error: old_posts.csv file not found in /$NAME_SITE"
         exit 1
     else
         echo "old_posts.csv file found in /$NAME_SITE"
     fi
     if [ ! -f "./$NAME_SITE/postmeta.csv" ]; then
-        echo "Error: wp_posts.csv file not found in /$NAME_SITE"
+        echo "Error: postmeta.csv file not found in /$NAME_SITE"
         exit 1
     else
         echo "postmeta.csv file found in /$NAME_SITE"
