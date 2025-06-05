@@ -461,10 +461,8 @@ try {
     die();
 }
 
-// Changer comment fonctionne argv[2] il doit être égal à -a ou alors contenir - puis soit p, -u, -f, -c et plusieurs possible
-// Supprimer les --all....
 
-if ($argv[1] == "-p" || $argv[1] == "--posts" || $argv[1] == "-a" || $argv[1] == "--all") {
+if (strpos($argv[1], 'p') !== false || $argv[1] == "-a") {
     echo "Adding posts...\n";
     add_posts($conn, $argv[2]);
 
@@ -474,24 +472,24 @@ if ($argv[1] == "-p" || $argv[1] == "--posts" || $argv[1] == "-a" || $argv[1] ==
     echo "Adding postmeta...\n";
     add_postmeta($conn, $argv[2]);
 }
-if ($argv[1] == "-u" || $argv[1] == "--user" || $argv[1] == "-a" || $argv[1] == "--all") {
+if (strpos($argv[1], 'u') !== false || $argv[1] == "-a" ) {
     echo "Adding users...\n";
-    // add_users($conn, $argv[2]);
+    add_users($conn, $argv[2]);
 
     echo "Getting users...\n";
-    // get_users($conn, $argv[2]);
+    get_users($conn, $argv[2]);
 
     echo "Adding usermeta...\n";
     add_usermeta($conn, $argv[2]);
 }
-if ($argv[1] == "-f" || $argv[1] == "--forminator" || $argv[1] == "-a" || $argv[1] == "--all") {
+if (strpos($argv[1], 'f') !== false || $argv[1] == "-a") {
     echo "Change dates forminator...\n";
     add_date_forminator($argv[2]);
 
     echo "Adding data forminator...\n";
     add_data_forminator($conn, $argv[2]);
 }
-if ($argv[1] == "-c" || $argv[1] == "--contest" || $argv[1] == "-a" || $argv[1] == "--all") {
+if (strpos($argv[1], 'c') !== false || $argv[1] == "-a") {
     echo "Getting contest...\n";
     get_contest($conn, $argv[2]);
 
