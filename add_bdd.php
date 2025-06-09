@@ -1,26 +1,15 @@
 <?php
 
-function add_users($bdd, $dossier) {
-    $reqPushUser = "LOAD DATA INFILE '/var/lib/mysql-files/$dossier/old_users.csv'
-        INTO TABLE `hr8qI_users`
-        FIELDS TERMINATED BY ',' 
-        OPTIONALLY ENCLOSED BY '\"'
-        LINES TERMINATED BY '\\n'
-        IGNORE 1 ROWS
-        (@ID, `user_login`, `user_pass`, `user_nicename`, `user_email`, `user_url`, `user_registered`, `user_activation_key`, `user_status`, `display_name`)
-        SET user_login = user_login,
-            user_pass = user_pass,
-            user_nicename = user_nicename,
-            user_email = user_email,
-            user_url = user_url,
-            user_registered = user_registered,
-            user_activation_key = user_activation_key,
-            user_status = user_status,
-            display_name = display_name";
-
-    $bdd->exec($reqPushUser);
-}
-
+/**
+ * Récup en bdd les users, avec les new ids.
+ * 
+ * Créer un fichier new_users.csv avec les utilisateurs de la bdd.
+ *
+ * @param string $bdd Nom de la bdd.
+ * @param string $dossier Nom du dossier ou se trouve.
+ *
+ * @return void
+ */
 function get_users($bdd, $dossier){
     $reqGetUsers = "SELECT id, user_email 
         FROM `hr8qI_users`
@@ -32,6 +21,37 @@ function get_users($bdd, $dossier){
     $bdd->exec($reqGetUsers);
 }
 
+/**
+ * Récup en bdd les posts, avec les new ids.
+ * 
+ * Crée un fichier new_posts.csv avec les posts de la bdd.
+ *
+ * @param string $bdd Nom de la bdd.
+ * @param string $dossier Nom du dossier ou se trouve.
+ *
+ * @return void
+ */
+function get_posts($bdd, $dossier){
+    $reqGetPosts = "SELECT *
+        FROM `hr8qI_posts`
+        WHERE post_type = 'attachment'
+        INTO OUTFILE '/var/lib/mysql-files/$dossier/new_posts.csv'
+        FIELDS TERMINATED BY ','
+        LINES TERMINATED BY '\\n'";
+    
+    $bdd->exec($reqGetPosts);
+}
+
+/**
+ * Récup en bdd les contests, avec les new ids.
+ * 
+ * Crée un fichier contest/new_post.csv avec les posts de la bdd.
+ *
+ * @param string $bdd Nom de la bdd.
+ * @param string $dossier Nom du dossier ou se trouve.
+ *
+ * @return void
+ */
 function get_contest($bdd, $dossier) {
     $reqGetContest = "SELECT *
         FROM `hr8qI_posts`
@@ -42,8 +62,18 @@ function get_contest($bdd, $dossier) {
     $bdd->exec($reqGetContest);
 }
 
+
+/**
+ * Change les IDs dans le fichier usermeta.
+ * 
+ * Crée un fichier meta_user_updated.csv avec les usermeta de la bdd.
+ *
+ * @param string $dossier Nom du dossier ou se trouve.
+ *
+ * @return void
+ */
 function change_idUserMeta($dossier){
-        // Change ids in usermeta
+    // Change ids in usermeta
     $old = fopen("/var/lib/mysql-files/$dossier/old_users.csv", 'r');
     $meta = fopen("./$dossier/usermeta.csv", 'r');
 
@@ -89,24 +119,15 @@ function change_idUserMeta($dossier){
     fclose($output);
 }
 
-function add_usermeta($bdd, $dossier){
-    change_idUserMeta($dossier);
-
-    // Add usermeta to database
-    echo "Ajout des usermeta à la base de données\n";
-    $reqPushUserMeta = "LOAD DATA INFILE '/var/lib/mysql-files/$dossier/meta_user_updated.csv'
-        INTO TABLE `hr8qI_usermeta`
-        FIELDS TERMINATED BY ',' 
-        OPTIONALLY ENCLOSED BY '\"'
-        LINES TERMINATED BY '\\n'
-        IGNORE 1 ROWS
-        (@id, `user_id`, `meta_key`, `meta_value`)
-        SET user_id = user_id,
-            meta_key = meta_key,
-            meta_value = meta_value";
-    $bdd->exec($reqPushUserMeta);
-}
-
+/**
+ * Change les IDs des auteurs dans le fichier posts.
+ * 
+ * Crée un fichier old_posts.csv avec les posts de la bdd.
+ *
+ * @param string $dossier Nom du dossier ou se trouve.
+ *
+ * @return void
+ */
 function change_authorId($dossier){
     $post = fopen("./$dossier/old_posts.csv", 'r');
 
@@ -163,6 +184,16 @@ function change_authorId($dossier){
     fclose($output);
 }
 
+/**
+ * Change les IDs dans le fichier postmeta.
+ * 
+ * Crée un fichier postmeta.csv avec les postmeta de la bdd.
+ *
+ * @param string $dossier Nom du dossier ou se trouve.
+ * @param string $categorie Categorie du postmeta (contest ou autre).
+ *
+ * @return void
+ */
 function change_idPostMeta($dossier, $categorie){
     if ($categorie == 'contest') {
         $old = fopen("./$dossier/contest/old_posts.csv", 'r');
@@ -215,6 +246,70 @@ function change_idPostMeta($dossier, $categorie){
     fclose($output);
 }
 
+
+/**
+ * Ajoute en bdd les users.
+ *
+ * @param string $bdd Nom de la bdd.
+ * @param string $dossier Nom du dossier ou se trouve.
+ *
+ * @return void
+ */
+function add_users($bdd, $dossier) {
+    $reqPushUser = "LOAD DATA INFILE '/var/lib/mysql-files/$dossier/old_users.csv'
+        INTO TABLE `hr8qI_users`
+        FIELDS TERMINATED BY ',' 
+        OPTIONALLY ENCLOSED BY '\"'
+        LINES TERMINATED BY '\\n'
+        IGNORE 1 ROWS
+        (@ID, `user_login`, `user_pass`, `user_nicename`, `user_email`, `user_url`, `user_registered`, `user_activation_key`, `user_status`, `display_name`)
+        SET user_login = user_login,
+            user_pass = user_pass,
+            user_nicename = user_nicename,
+            user_email = user_email,
+            user_url = user_url,
+            user_registered = user_registered,
+            user_activation_key = user_activation_key,
+            user_status = user_status,
+            display_name = display_name";
+
+    $bdd->exec($reqPushUser);
+}
+
+/**
+ * Ajoute en bdd les usermeta.
+ *
+ * @param string $bdd Nom de la bdd.
+ * @param string $dossier Nom du dossier ou se trouve.
+ *
+ * @return void
+ */
+function add_usermeta($bdd, $dossier){
+    change_idUserMeta($dossier);
+
+    // Add usermeta to database
+    echo "Ajout des usermeta à la base de données\n";
+    $reqPushUserMeta = "LOAD DATA INFILE '/var/lib/mysql-files/$dossier/meta_user_updated.csv'
+        INTO TABLE `hr8qI_usermeta`
+        FIELDS TERMINATED BY ',' 
+        OPTIONALLY ENCLOSED BY '\"'
+        LINES TERMINATED BY '\\n'
+        IGNORE 1 ROWS
+        (@id, `user_id`, `meta_key`, `meta_value`)
+        SET user_id = user_id,
+            meta_key = meta_key,
+            meta_value = meta_value";
+    $bdd->exec($reqPushUserMeta);
+}
+
+/**
+ * Ajoute en bdd les posts.
+ *
+ * @param string $bdd Nom de la bdd.
+ * @param string $dossier Nom du dossier ou se trouve.
+ *
+ * @return void
+ */
 function add_posts($bdd, $dossier){
     change_authorId($dossier);
 
@@ -251,17 +346,14 @@ function add_posts($bdd, $dossier){
     $bdd->exec($reqPushPost);
 }
 
-function get_posts($bdd, $dossier){
-    $reqGetPosts = "SELECT *
-        FROM `hr8qI_posts`
-        WHERE post_type = 'attachment'
-        INTO OUTFILE '/var/lib/mysql-files/$dossier/new_posts.csv'
-        FIELDS TERMINATED BY ','
-        LINES TERMINATED BY '\\n'";
-    
-    $bdd->exec($reqGetPosts);
-}
-
+/**
+ * Ajoute en bdd les postmeta.
+ *
+ * @param string $bdd Nom de la bdd.
+ * @param string $dossier Nom du dossier ou se trouve.
+ *
+ * @return void
+ */
 function add_postmeta($bdd, $dossier){
     change_idPostMeta($dossier, 'postmeta');
 
@@ -279,6 +371,16 @@ function add_postmeta($bdd, $dossier){
     $bdd->exec($reqPushPostMeta);
 }
 
+/**
+ * Remplace les dates (0000-00-00 00:00:00) dans les fichiers forminator.
+ * 
+ * Créer un fichier old_views.csv et old_entry_meta.csv avec les dates corrigées.
+ *
+ * @param string $bdd Nom de la bdd.
+ * @param string $dossier Nom du dossier ou se trouve.
+ *
+ * @return void
+ */
 function add_date_forminator($dossier) {
     $tab_fichier = [
         "old_views.csv" => [
@@ -294,6 +396,7 @@ function add_date_forminator($dossier) {
     foreach ($tab_fichier as $fichier => $cases) {
         $filename = "./$dossier/forminator/".$fichier;
         $filetmp = "/var/lib/mysql-files/$dossier/".$fichier;
+
         if (($handle = fopen($filename, 'r')) !== false && ($tempHandle = fopen($filetmp, 'w')) !== false) {
             while (($data = fgetcsv($handle, 1000, ',', '"')) !== false) {
                 if ($data[$cases['up_date']] == '0000-00-00 00:00:00') {
@@ -309,6 +412,14 @@ function add_date_forminator($dossier) {
     }
 }
 
+/**
+ * Ajoute les données forminator en bdd.
+ *
+ * @param string $bdd Nom de la bdd.
+ * @param string $dossier Nom du dossier ou se trouve.
+ *
+ * @return void
+ */
 function add_data_forminator($bdd, $dossier) {
     // delete old views
     $reqSuppViews = "DELETE FROM `hr8qI_frmt_form_views`";
@@ -391,6 +502,14 @@ function add_data_forminator($bdd, $dossier) {
     $bdd->exec($reqAddEntryMeta);
 }
 
+/**
+ * Ajoute les données du concours en bdd.
+ *
+ * @param string $bdd Nom de la bdd.
+ * @param string $dossier Nom du dossier ou se trouve.
+ *
+ * @return void
+ */
 function add_data_contest($bdd, $dossier) {
     // delete old contest
     $reqSuppContest = "DELETE FROM `hr8qI_fca_cc_activity_tbl`";
@@ -414,6 +533,13 @@ function add_data_contest($bdd, $dossier) {
     $bdd->exec($reqAddContest);
 }
 
+/**
+ * Vérifie si la chaîne d'options est valide.
+ *
+ * @param string $str La chaîne d'options à valider.
+ *
+ * @return true|die()
+ */
 function is_valid_option_string($str) {
     if (empty($str)) {
         die(" Erreur: l'option ne doit pas être vide.\n");
@@ -430,7 +556,7 @@ function is_valid_option_string($str) {
     if (count($letters) !== count(array_unique($letters))) {
         die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, chacune au plus une fois.\n");
     }
-    return true;
+    return true|die();
     // die("L'option est valide.\n");
 }
 
@@ -446,6 +572,7 @@ if (substr($argv[1], 0, 1) !== '-') {
     die("Erreur: l'option doit commencer par un '-'.\n");
 }
 is_valid_option_string(substr($argv[1], 1));
+
 
 // Connect to the database
 try {
