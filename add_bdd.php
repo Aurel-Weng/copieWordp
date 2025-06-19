@@ -34,7 +34,7 @@ function get_users($bdd, $dossier){
 function get_posts($bdd, $dossier){
     $reqGetPosts = "SELECT *
         FROM `hr8qI_posts`
-        WHERE post_type = 'attachment'
+        WHERE post_type LIKE '%attachment%'
         INTO OUTFILE '/var/lib/mysql-files/$dossier/new_posts.csv'
         FIELDS TERMINATED BY ','
         LINES TERMINATED BY '\\n'";
@@ -203,11 +203,16 @@ function change_idPostMeta($dossier, $categorie){
         $output = fopen("/var/lib/mysql-files/$dossier/contest/contest_data.csv", 'w');
         $meta = fopen("./$dossier/contest/old_fca_cc_activity_tbl.csv" , 'r');
     } else {
-        $old = fopen("/var/lib/mysql-files/$dossier/old_posts.csv", 'r');
+        $old = fopen("./$dossier/old_posts.csv", 'r');
         $new = fopen("/var/lib/mysql-files/$dossier/new_posts.csv", 'r');
 
-        $output = fopen("/var/lib/mysql-files/$dossier/postmeta.csv", 'w');
-        $meta = fopen("./$dossier/postmeta.csv", 'r');
+        if ($categorie == 'postmeta') {
+            $output = fopen("/var/lib/mysql-files/$dossier/postmeta.csv", 'w');
+            $meta = fopen("./$dossier/postmeta.csv", 'r');
+        } else {
+            $output = fopen("/var/lib/mysql-files/$dossier/slide/new_slider.csv", 'w');
+            $meta = fopen("./$dossier/slide/wgl_slides.csv", 'r');
+        }
     }
     $replace_id = [];
 
@@ -237,6 +242,9 @@ function change_idPostMeta($dossier, $categorie){
         // Remplacer ID si trouvé
         if (isset($replace_id[$ligne_meta[1]])) {
             $ligne_meta[1] = $replace_id[$ligne_meta[1]];
+        }
+        if ( $categorie == 'slide' && isset($replace_id[$ligne_meta[2]]) ) {
+            $ligne_meta[2] = $replace_id[$ligne_meta[2]];
         }
 
         // Écriture ligne par ligne avec virgule comme séparateur
@@ -533,6 +541,27 @@ function add_data_contest($bdd, $dossier) {
     $bdd->exec($reqAddContest);
 }
 
+function add_slide($bdd, $dossier) {
+    // delete old slide
+    $reqSuppSlide = "DELETE FROM `hr8qI_wgl_slides`";
+    $bdd->exec($reqSuppSlide);
+
+    // add new slide
+    $reqAddSlide = "LOAD DATA INFILE '/var/lib/mysql-files/$dossier/slide/new_slider.csv'
+        INTO TABLE `hr8qI_wgl_slides`
+        FIELDS TERMINATED BY ',' 
+        OPTIONALLY ENCLOSED BY '\"'
+        LINES TERMINATED BY '\\n'
+        IGNORE 1 ROWS
+        (`id`, `desktop_image_id`, `mobile_image_id`, `link`, `end_date`)
+        SET id = id,
+            desktop_image_id = desktop_image_id,
+            mobile_image_id = mobile_image_id,
+            link = link,
+            end_date = end_date";
+    $bdd->exec($reqAddSlide);
+}
+
 /**
  * Vérifie si la chaîne d'options est valide.
  *
@@ -546,17 +575,17 @@ function is_valid_option_string($str) {
     }
 
     // Only allow letters p, u, f, c, each at most once
-    if (!preg_match('/^[pufc]{1,4}$/', $str)) {
+    if (!preg_match('/^[pufcs]{1,5}$/', $str)) {
         if ($str !== 'a' && $str !== 'h') {
-            die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, chacune au plus une fois. Ou alors seulement a ou h.\n");
+            die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, s chacune au plus une fois. Ou alors seulement a ou h.\n");
         }
     }
     // Check for duplicates
     $letters = str_split($str);
     if (count($letters) !== count(array_unique($letters))) {
-        die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, chacune au plus une fois.\n");
+        die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, s chacune au plus une fois.\n");
     }
-    return true|die();
+    return true;
     // die("L'option est valide.\n");
 }
 
@@ -588,6 +617,7 @@ try {
     die();
 }
 
+echo "Connection to database $database successful.\n";
 
 if (strpos($argv[1], 'p') !== false || $argv[1] == "-a") {
     echo "Adding posts...\n";
@@ -625,4 +655,12 @@ if (strpos($argv[1], 'c') !== false || $argv[1] == "-a") {
 
     echo "Adding contest...\n";
     add_data_contest($conn, $argv[2]);
+}
+if (strpos($argv[1], 's') !== false || $argv[1] == "-a") {
+    get_posts($conn, $argv[2]);
+    echo "Changing ID postmeta for slide...\n";
+    change_idPostMeta($argv[2], 'slide');
+
+    echo "Adding slide...\n";
+    add_slide($conn, $argv[2]);
 }

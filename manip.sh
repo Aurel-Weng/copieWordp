@@ -18,6 +18,7 @@
 # -a : To change all the user_id and post_id
 # -f : To change the post_id and add all forminator's data
 # -c : To change the post_id and add all contest's data
+# -s : To change the post_id and add all slide's data
 
 
 # /var/lib/mysql-files/$NAME_SITE/
@@ -39,6 +40,7 @@ if [ "$#" -eq 0 ] || ( [ "$#" -eq 1 ] && [ "$1" == "-h" ] ); then
     echo "-p : To change the post and add all posts data"
     echo "-f : To change the post_id and add all forminator's data"
     echo "-c : To change the post_id and add all contest's data"
+    echo "-s : To change the post_id and add all slide's data"
     echo "-a : To change and add all users, posts and forminator's data"
     exit 0
 fi
@@ -148,8 +150,29 @@ if contains_char_once "c" || [ "$OPTIONS" == "-a" ]; then
         echo "old_fca_cc_activity_tbl.csv file found in /$NAME_SITE/contest"
     fi
 fi
+if contains_char_once "s" || [ "$OPTIONS" == "-a"]; then
+    # Check if the slide directory exists
+    if [ ! -d "/var/lib/mysql-files/$NAME_SITE/slide" ]; then
+        echo "Creating directory /var/lib/mysql-files/$NAME_SITE/slide"
+        mkdir -p /var/lib/mysql-files/$NAME_SITE/slide
+    fi
+
+    if [ ! -f "./$NAME_SITE/old_posts.csv" ]; then
+        echo "Error: old_posts.csv file not found in /$NAME_SITE"
+        exit 1
+    else
+        echo "old_posts.csv file found in /$NAME_SITE"
+    fi
+    if [ ! -f "./$NAME_SITE/slide/wgl_slides.csv" ]; then
+        echo "Error: wgl_slides.csv file not found in /$NAME_SITE/slide"
+        exit 1
+    else
+        echo "wgl_slides.csv file found in /$NAME_SITE/slide"
+    fi
+fi
 
 chmod -R 777 /var/lib/mysql-files
+chown -R www-data:www-data /var/lib/mysql-files/$NAME_SITE
 
 # Execute the php script
 php add_bdd.php $OPTIONS $NAME_SITE $DB_NAME $DB_USER $DB_PASS
