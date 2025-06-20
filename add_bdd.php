@@ -97,7 +97,7 @@ function change_idUserMeta($dossier){
         }
         fclose($new);
     }
-    var_dump($replace_id);
+    // var_dump($replace_id);
 
     // Rewrite usermeta with new IDs
     echo "Réécriture du fichier meta avec les nouveaux IDs\n";
@@ -296,7 +296,6 @@ function add_usermeta($bdd, $dossier){
     change_idUserMeta($dossier);
 
     // Add usermeta to database
-    echo "Ajout des usermeta à la base de données\n";
     $reqPushUserMeta = "LOAD DATA INFILE '/var/lib/mysql-files/$dossier/meta_user_updated.csv'
         INTO TABLE `hr8qI_usermeta`
         FIELDS TERMINATED BY ',' 
