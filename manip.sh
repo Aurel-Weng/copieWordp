@@ -150,7 +150,7 @@ if contains_char_once "c" || [ "$OPTIONS" == "-a" ]; then
         echo "old_fca_cc_activity_tbl.csv file found in /$NAME_SITE/contest"
     fi
 fi
-if contains_char_once "s" || [ "$OPTIONS" == "-a"]; then
+if contains_char_once "s" || [ "$OPTIONS" == "-a" ]; then
     # Check if the slide directory exists
     if [ ! -d "/var/lib/mysql-files/$NAME_SITE/slide" ]; then
         echo "Creating directory /var/lib/mysql-files/$NAME_SITE/slide"
