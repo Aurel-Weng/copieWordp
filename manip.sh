@@ -33,7 +33,7 @@ contains_char_once() {
 
 # Help message
 if [ "$#" -eq 0 ] || ( [ "$#" -eq 1 ] && [ "$1" == "-h" ] ); then
-    echo "Usage: $0 [OPTIONS] [NAME_SITE] [DB_NAME] [DB_USER] [DB_PASS]"
+    echo "Usage: $0 [OPTIONS] [NAME_SITE] [DB_NAME] [DB_USER] [DB_PASS] [DATE]"
     echo "Options:"
     echo "-h : Show this help message"
     echo "-u : To change the user_id and add all users data"
@@ -41,13 +41,10 @@ if [ "$#" -eq 0 ] || ( [ "$#" -eq 1 ] && [ "$1" == "-h" ] ); then
     echo "-f : To change the post_id and add all forminator's data"
     echo "-c : To change the post_id and add all contest's data"
     echo "-s : To change the post_id and add all slide's data"
-    echo "-a : To change and add all users, posts and forminator's data"
+    echo "-n : To update last posts before pushing the new version"
+    echo "-a : All options together (u, p, f, c, s)"
+    echo "Put date in format DD-MM-YYYY only if the option chosen is -n"
     exit 0
-fi
-
-if [ "$#" -ne 5 ]; then
-    echo "Usage: $0 [OPTIONS] [NAME_SITE] [DB_NAME] [DB_USER] [DB_PASS]"
-    exit 1
 fi
 
 OPTIONS=$1
@@ -55,6 +52,7 @@ NAME_SITE=$2
 DB_NAME=$3
 DB_USER=$4
 DB_PASS=$5
+DATE=''
 
 # Create directory in mysql-files if it doesn't exist
 if [ ! -d "/var/lib/mysql-files/$NAME_SITE" ]; then
@@ -73,7 +71,7 @@ if contains_char_once "u" || [ "$OPTIONS" == "-a" ]; then
         cp ./$NAME_SITE/old_users.csv /var/lib/mysql-files/$NAME_SITE
     fi
     if [ ! -f "./$NAME_SITE/usermeta.csv" ]; then
-        echo "Error: old_users.csv file not found in /$NAME_SITE"
+        echo "Error: usermeta.csv file not found in /$NAME_SITE"
         exit 1
     else
         echo "usermeta.csv file found in /$NAME_SITE"
@@ -170,11 +168,21 @@ if contains_char_once "s" || [ "$OPTIONS" == "-a" ]; then
         echo "wgl_slides.csv file found in /$NAME_SITE/slide"
     fi
 fi
+if contains_char_once "n"; then
+    if [ ! -f "./$NAME_SITE/last_posts.csv" ]; then
+        echo "Error: last_posts.csv file not found in /$NAME_SITE"
+        exit 1
+    else
+        echo "last_posts.csv file found in /$NAME_SITE"
+    fi
+
+    DATE=$6
+fi
 
 chmod -R 777 /var/lib/mysql-files
 chown -R www-data:www-data /var/lib/mysql-files/$NAME_SITE
 
 # Execute the php script
-php add_bdd.php $OPTIONS $NAME_SITE $DB_NAME $DB_USER $DB_PASS
+php add_bdd.php $OPTIONS $NAME_SITE $DB_NAME $DB_USER $DB_PASS $DATE
 
 chmod -R 700 /var/lib/mysql-files
