@@ -367,24 +367,26 @@ function add_posts($bdd, $dossier){
  * @return void
  */
 function updatePostData($bdd, $dossier) {
-    $oldPostsFile = fopen("/var/lib/mysql-files/$dossier/last_posts.csv", "r");
+    $lastPostsFile = fopen("/var/lib/mysql-files/$dossier/last_posts.csv", "r");
     $newPostsFile = fopen("/var/lib/mysql-files/$dossier/new_posts.csv", "r");
+
     $updatedPostsFile = fopen("/var/lib/mysql-files/$dossier/updated_posts.csv", "w");
+    $addPostFile = fopen("/var/lib/mysql-files/$dossier/add_posts.csv", "w");
 
     $postsToUpdate = [];
     $postsToAdd = [];
 
-    fgetcsv($oldPostsFile, 0, ',');
+    fgetcsv($lastPostsFile, 0, ',');
 
-    while ($oldPost = fgetcsv($oldPostsFile, 0, ',')) {
-        $oldPostData = explode(',', $oldPost[0]);
-        $postsToAdd[] = $oldPostData[0];
+    while ($oldPost = fgetcsv($lastPostsFile, 0, ',')) {
+        $lastPostData = explode(',', $oldPost[0]);
+        $postsToAdd[] = $lastPostData[0];
 
         while ($newPost = fgetcsv($newPostsFile, 0, ',')) {
             $newPostData = explode(',', $newPost[0]);
 
-            if (strcasecmp(trim($newPostData[2], '"'), trim($oldPostData[2], '"')) == 0 && strcasecmp(trim($newPostData[5], '"'), trim($oldPostData[5], '"')) == 0 && strcasecmp(trim($newPostData[11], '"'), trim($oldPostData[11], '"')) == 0) {
-                
+            if (strcasecmp(trim($newPostData[2], '"'), trim($lastPostData[2], '"')) == 0 && strcasecmp(trim($newPostData[5], '"'), trim($lastPostData[5], '"')) == 0 && strcasecmp(trim($newPostData[11], '"'), trim($lastPostData[11], '"')) == 0) {
+                $postsToUpdate[$newPostData[0]] = $lastPostData[0];
             }
         }
     }
