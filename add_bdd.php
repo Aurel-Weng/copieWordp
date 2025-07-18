@@ -11,14 +11,16 @@
  * @return void
  */
 function get_users($bdd, $dossier){
-    $reqGetUsers = "SELECT id, user_email 
-        FROM `hr8qI_users`
-        INTO OUTFILE '/var/lib/mysql-files/$dossier/new_users.csv'
-        FIELDS TERMINATED BY ','
-        LINES TERMINATED BY '\\n'";
-        //suppression WHERE id > 13
-    
-    $bdd->exec($reqGetUsers);
+    if (!file_exists("/var/lib/mysql-files/$dossier/new_users.csv")) {
+        $reqGetUsers = "SELECT id, user_email 
+            FROM `hr8qI_users`
+            INTO OUTFILE '/var/lib/mysql-files/$dossier/new_users.csv'
+            FIELDS TERMINATED BY ','
+            LINES TERMINATED BY '\\n'";
+            //suppression WHERE id > 13
+        
+        $bdd->exec($reqGetUsers);
+    }
 }
 
 /**
@@ -31,10 +33,14 @@ function get_users($bdd, $dossier){
  *
  * @return void
  */
-function get_posts($bdd, $dossier){
+function get_posts($bdd, $dossier, $post_type=''){
+    if (file_exists("/var/lib/mysql-files/$dossier/new_posts.csv")) {
+        unlink("/var/lib/mysql-files/$dossier/new_posts.csv");
+    }
+
     $reqGetPosts = "SELECT *
         FROM `hr8qI_posts`
-        WHERE post_type LIKE '%attachment%'
+        WHERE post_type LIKE '%$post_type%'
         INTO OUTFILE '/var/lib/mysql-files/$dossier/new_posts.csv'
         FIELDS TERMINATED BY ','
         LINES TERMINATED BY '\\n'";
@@ -254,7 +260,6 @@ function change_idPostMeta($dossier, $categorie){
     fclose($output);
 }
 
-
 /**
  * Ajoute en bdd les users.
  *
@@ -351,6 +356,39 @@ function add_posts($bdd, $dossier){
             comment_count = comment_count";
     
     $bdd->exec($reqPushPost);
+}
+
+/**
+ * Met à jour les données des posts/postmeta si la date de modification est plus récente.
+ *
+ * @param string $bdd Nom de la bdd.
+ * @param string $dossier Nom du dossier ou se trouve.
+ *
+ * @return void
+ */
+function updatePostData($bdd, $dossier) {
+    $oldPostsFile = fopen("/var/lib/mysql-files/$dossier/last_posts.csv", "r");
+    $newPostsFile = fopen("/var/lib/mysql-files/$dossier/new_posts.csv", "r");
+    $updatedPostsFile = fopen("/var/lib/mysql-files/$dossier/updated_posts.csv", "w");
+
+    $postsToUpdate = [];
+    $postsToAdd = [];
+
+    fgetcsv($oldPostsFile, 0, ',');
+
+    while ($oldPost = fgetcsv($oldPostsFile, 0, ',')) {
+        $oldPostData = explode(',', $oldPost[0]);
+        $postsToAdd[] = $oldPostData[0];
+
+        while ($newPost = fgetcsv($newPostsFile, 0, ',')) {
+            $newPostData = explode(',', $newPost[0]);
+
+            if (strcasecmp(trim($newPostData[2], '"'), trim($oldPostData[2], '"')) == 0 && strcasecmp(trim($newPostData[5], '"'), trim($oldPostData[5], '"')) == 0 && strcasecmp(trim($newPostData[11], '"'), trim($oldPostData[11], '"')) == 0) {
+                
+            }
+        }
+    }
+
 }
 
 /**
@@ -573,16 +611,16 @@ function is_valid_option_string($str) {
         die(" Erreur: l'option ne doit pas être vide.\n");
     }
 
-    // Only allow letters p, u, f, c, each at most once
-    if (!preg_match('/^[pufcs]{1,5}$/', $str)) {
+    // Only allow letters p, u, f, c, s, n each at most once
+    if (!preg_match('/^[pufcsn]{1,6}$/', $str)) {
         if ($str !== 'a' && $str !== 'h') {
-            die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, s chacune au plus une fois. Ou alors seulement a ou h.\n");
+            die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, s, n chacune au plus une fois. Ou alors seulement a ou h.\n");
         }
     }
     // Check for duplicates
     $letters = str_split($str);
     if (count($letters) !== count(array_unique($letters))) {
-        die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, s chacune au plus une fois.\n");
+        die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, s, n chacune au plus une fois.\n");
     }
     return true;
     // die("L'option est valide.\n");
@@ -590,8 +628,8 @@ function is_valid_option_string($str) {
 
 
 // Check if the script is run with the correct number of arguments
-if (!($argc = 6 && $argv[1] != " " && $argv[2] != " " && $argv[3] != " " && $argv[4] != " " && $argv[5] != " ")) {
-    echo "Usage: php add_bdd.php <option> <nom_site> <database_name> <username> <password>";
+if (!($argc = 6 || $argc = 7 && $argv[1] != " " && $argv[2] != " " && $argv[3] != " " && $argv[4] != " " && $argv[5] != " ")) {
+    echo "Usage: php add_bdd.php <option> <nom_site> <database_name> <username> <password> <date (only if option n)>\n";
     die();
 }
 
@@ -623,7 +661,7 @@ if (strpos($argv[1], 'p') !== false || $argv[1] == "-a") {
     add_posts($conn, $argv[2]);
 
     echo "Getting posts...\n";
-    get_posts($conn, $argv[2]);
+    get_posts($conn, $argv[2], "attachment");
 
     echo "Adding postmeta...\n";
     add_postmeta($conn, $argv[2]);
@@ -656,10 +694,13 @@ if (strpos($argv[1], 'c') !== false || $argv[1] == "-a") {
     add_data_contest($conn, $argv[2]);
 }
 if (strpos($argv[1], 's') !== false || $argv[1] == "-a") {
-    get_posts($conn, $argv[2]);
+    get_posts($conn, $argv[2], "attachment");
     echo "Changing ID postmeta for slide...\n";
     change_idPostMeta($argv[2], 'slide');
 
     echo "Adding slide...\n";
     add_slide($conn, $argv[2]);
+}
+if (strpos($argv[1], 'f') !== false) {
+    get_posts($conn, $argv[2]);
 }
