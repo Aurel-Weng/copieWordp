@@ -98,33 +98,33 @@ if contains_char_once "f" || [ "$OPTIONS" == "-a" ]; then
         mkdir -p /var/lib/mysql-files/$NAME_SITE/forminator
     fi
 
-    if [ ! -f "./$NAME_SITE/forminator/old_views.csv" ]; then
-        echo "Error: old_views.csv file not found in /$NAME_SITE/forminator"
+    if [ ! -f "./$NAME_SITE/forminator/views.csv" ]; then
+        echo "Error: views.csv file not found in /$NAME_SITE/forminator"
         exit 1
     else
-        echo "old_views.csv file found in /$NAME_SITE/forminator"
+        echo "views.csv file found in /$NAME_SITE/forminator"
     fi
-    if [ ! -f "./$NAME_SITE/forminator/old_reports.csv" ]; then
-        echo "Error: old_reports.csv file not found in /$NAME_SITE/forminator"        
+    if [ ! -f "./$NAME_SITE/forminator/reports.csv" ]; then
+        echo "Error: reports.csv file not found in /$NAME_SITE/forminator"
         exit 1
     else
-        echo "old_reports.csv file found in /$NAME_SITE/forminator"
+        echo "reports.csv file found in /$NAME_SITE/forminator"
 
-        cp ./$NAME_SITE/forminator/old_reports.csv /var/lib/mysql-files/$NAME_SITE
+        cp ./$NAME_SITE/forminator/reports.csv /var/lib/mysql-files/$NAME_SITE
     fi
-    if [ ! -f "./$NAME_SITE/forminator/old_entry.csv" ]; then
-        echo "Error: old_entry.csv file not found in /$NAME_SITE/forminator"
+    if [ ! -f "./$NAME_SITE/forminator/entry.csv" ]; then
+        echo "Error: entry.csv file not found in /$NAME_SITE/forminator"
         exit 1
     else
-        echo "old_entry.csv file found in /$NAME_SITE/forminator"
+        echo "entry.csv file found in /$NAME_SITE/forminator"
         
-        cp ./$NAME_SITE/forminator/old_entry.csv /var/lib/mysql-files/$NAME_SITE
+        cp ./$NAME_SITE/forminator/entry.csv /var/lib/mysql-files/$NAME_SITE
     fi
-    if [ ! -f "./$NAME_SITE/forminator/old_entry_meta.csv" ]; then
-        echo "Error: old_entry_meta.csv file not found in /$NAME_SITE/forminator"
+    if [ ! -f "./$NAME_SITE/forminator/entry_meta.csv" ]; then
+        echo "Error: entry_meta.csv file not found in /$NAME_SITE/forminator"
         exit 1
     else
-        echo "old_entry_meta.csv file found in /$NAME_SITE/forminator"
+        echo "entry_meta.csv file found in /$NAME_SITE/forminator"
     fi
 fi
 if contains_char_once "c" || [ "$OPTIONS" == "-a" ]; then
@@ -178,11 +178,14 @@ if contains_char_once "n"; then
 
     DATE=$6
 fi
+if contains_char_once 'm'; then
+    DATE=$6
+fi
 
 chmod -R 777 /var/lib/mysql-files
 chown -R www-data:www-data /var/lib/mysql-files/$NAME_SITE
 
 # Execute the php script
-php add_bdd.php $OPTIONS $NAME_SITE $DB_NAME $DB_USER $DB_PASS $DATE
+php add_bdd.php $OPTIONS $NAME_SITE $DB_NAME $DB_USER $DB_PASS "$DATE"
 
 chmod -R 700 /var/lib/mysql-files

@@ -49,6 +49,29 @@ function get_posts($bdd, $dossier, $post_type=''){
 }
 
 /**
+ * Récup en bdd les postmeta.
+ * 
+ * Crée un fichier new_postmeta.csv avec les postmeta de la bdd.
+ *
+ * @param string $bdd Nom de la bdd.
+ * @param string $dossier Nom du dossier ou se trouve.
+ *
+ * @return void
+ */
+function get_postsMeta($bdd, $dossier) {
+    if (file_exists("/var/lib/mysql-files/$dossier/new_postmeta.csv")) {
+        unlink("/var/lib/mysql-files/$dossier/new_postmeta.csv");
+    }
+
+    $reqGetPostMeta = "SELECT *
+        FROM `hr8qI_postmeta`
+        INTO OUTFILE '/var/lib/mysql-files/$dossier/new_postmeta.csv'
+        FIELDS TERMINATED BY ','
+        LINES TERMINATED BY '\\n'";
+    $bdd->exec($reqGetPostMeta);
+}
+
+/**
  * Récup en bdd les contests, avec les new ids.
  * 
  * Crée un fichier contest/new_post.csv avec les posts de la bdd.
@@ -67,7 +90,6 @@ function get_contest($bdd, $dossier) {
         LINES TERMINATED BY '\\n'";
     $bdd->exec($reqGetContest);
 }
-
 
 /**
  * Change les IDs dans le fichier usermeta.
@@ -244,7 +266,6 @@ function change_idPostMeta($dossier, $categorie){
     fputcsv($output, $first_meta_line, ',');
 
     while ($ligne_meta = fgetcsv($meta, null, ',')) {
-        // var_dump($ligne_meta);
         // Remplacer ID si trouvé
         if (isset($replace_id[$ligne_meta[1]])) {
             $ligne_meta[1] = $replace_id[$ligne_meta[1]];
@@ -553,7 +574,7 @@ function add_data_forminator($bdd, $dossier) {
  * Ajoute les données du concours en bdd.
  *
  * @param string $bdd Nom de la bdd.
- * @param string $dossier Nom du dossier ou se trouve.
+ * @param string $dossier Nom du dossier ou se trouve les fichiers.
  *
  * @return void
  */
@@ -601,6 +622,166 @@ function add_slide($bdd, $dossier) {
     $bdd->exec($reqAddSlide);
 }
 
+
+
+function addHeaders($fileHeaders, $filename, $bdd, $dossier) {
+    if ($filename == 'posts') {
+        if (file_exists("./$dossier/maj/maj_posts.csv")) {
+            unlink("./$dossier/maj/maj_posts.csv");
+        }
+
+        // get_posts($bdd, $dossier);
+        if (file_exists("/var/lib/mysql-files/$dossier/maj_posts.csv")) {
+            unlink("/var/lib/mysql-files/$dossier/maj_posts.csv");
+        }
+        $reqGetPosts = "SELECT ID, post_date, post_title, post_type
+            FROM `hr8qI_posts`
+            INTO OUTFILE '/var/lib/mysql-files/$dossier/maj_posts.csv'
+            FIELDS TERMINATED BY ','
+            ENCLOSED BY '\"'
+            ESCAPED BY '\"'
+            LINES TERMINATED BY '\\n'";
+        
+        $bdd->exec($reqGetPosts);
+
+        $file = "./$dossier/maj/new_posts.csv";
+        $contenu = file_get_contents("/var/lib/mysql-files/$dossier/maj_posts.csv");
+    } else {
+        if (file_exists("./$dossier/maj/new_postmeta.csv")) {
+            unlink("./$dossier/maj/new_postmeta.csv");
+        }
+
+        get_postsMeta($bdd, $dossier);
+        $file = "./$dossier/maj/new_postmeta.csv";
+        $contenu = file_get_contents("/var/lib/mysql-files/$dossier/new_postmeta.csv");
+    }
+    
+    file_put_contents($file, $fileHeaders. "\n" .$contenu);
+}
+
+/**
+ * Transforme les données CSV dans un tableau associatif
+ * 
+ * @param string $filename Chemin vers le fichier CSV
+ * 
+ * @return array Tableau des données
+ */
+function csvToTab($filename) {
+    echo $filename;
+    $data = [];
+    if (($handle = fopen($filename, "r")) !== FALSE) {
+        $headers = fgetcsv($handle, null, ";");
+        while (($row = fgetcsv($handle, null, "\n"))) {
+            var_dump($row);
+            $data[] = array_combine(explode(';',$headers[0]), $row);
+        }
+        fclose($handle);
+    }
+    return $data;
+}
+
+/**
+ * Transforme les tableau en fichier csv
+ * 
+ * @param array $tab Tableau à transformer
+ * @param string $name Nom de fichier csv à créer
+ * 
+ * @return void
+*/
+function tabToCsv($tab, $name) {
+    $file = fopen($name, 'w');
+    $cpt = 0;
+
+    foreach ($tab as $ligne) {
+        if ($cpt == 0) {
+            fputcsv($file, array_keys($ligne));
+            $cpt++;
+        }
+        fputcsv($file, $ligne);
+    }
+    fclose($file);
+}
+
+/**
+ * Trouve un post dans V2 qui correspond au post V1
+ * @param array $postV1 Post de la version 1
+ * @param array $postsV2 Tous les posts de la version 2
+ * @return array|null Post trouvé ou null
+ */
+function trouverPostCorrespondant($postV1, $postsV2) {
+    foreach ($postsV2 as $postV2) {
+        if ($postV1['post_date'] === $postV2['post_date'] && 
+            $postV1['post_title'] === $postV2['post_title'] &&
+            $postV1['post_type'] === $postV2['post_type']) {
+            return $postV2;
+        }
+    }
+    return null;
+}
+
+/**
+ * Parcours les posts et regarde s'il y a des posts à modifier ou ajouter.
+ * 
+ * @param string $dossier Nom du dossier ou se trouve les fichiers.
+ * @return array Résultat de l'analyse.
+ */
+function checkAction($posts1, $posts2, $date) {
+    $mapId = [];
+    $postsModif = [];
+    $postsAdd = [];
+
+    foreach ($posts1 as $p1) {
+        $egaux = trouverPostCorrespondant($p1, $posts2);
+
+        if ($egaux) {
+            
+            if ($p1['post_modified'] > $date) {
+                $mapId[$p1['ID']] = $egaux['ID'];
+
+                $modif = $p1;
+                $modif['ID'] = $egaux['ID'];
+                $postsModif[] = $modif;
+            }
+        } else {
+            $add = $p1;
+            unset($add['ID']);
+            $postsAdd[$p1['ID']] = $add;
+            $mapId[$p1['ID']] = "nouveau";
+        }
+    }
+
+    return [
+        'add'   => $postsAdd,
+        'modif' => $postsModif,
+        'map'   => $mapId
+    ];
+}
+
+
+function maj($bdd, $dossier, $date) {
+    $postsV1 = csvToTab("./test/hr8qI_posts.csv");
+    echo "\n\nPassage au 2\n";
+
+    $headers = "ID,post_date,post_title,post_type";
+    addHeaders($headers, 'posts', $bdd, $dossier);
+
+    $postsV2 = csvToTab("./$dossier/maj/new_posts.csv");
+
+    echo "\n\n";
+    // $actions = checkAction($postsV1, $postsV2, $date);
+    // var_dump($actions);
+
+    // tabToCsv($actions['add'], "./$dossier/maj/postsToAdd.csv");
+    // tabToCsv($actions['modif'], "./$dossier/maj/postsToUpdate.csv");
+
+    // try {
+    //     add_posts()
+    // } catch (\Throwable $th) {
+    //     //throw $th;
+    // }
+}
+
+
 /**
  * Vérifie si la chaîne d'options est valide.
  *
@@ -614,15 +795,15 @@ function is_valid_option_string($str) {
     }
 
     // Only allow letters p, u, f, c, s, n each at most once
-    if (!preg_match('/^[pufcsn]{1,6}$/', $str)) {
+    if (!preg_match('/^[pufcsnm]{1,6}$/', $str)) {
         if ($str !== 'a' && $str !== 'h') {
-            die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, s, n chacune au plus une fois. Ou alors seulement a ou h.\n");
+            die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, s, n, mchacune au plus une fois. Ou alors seulement a ou h.\n");
         }
     }
     // Check for duplicates
     $letters = str_split($str);
     if (count($letters) !== count(array_unique($letters))) {
-        die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, s, n chacune au plus une fois.\n");
+        die("Erreur: l'option doit contenir uniquement les lettres p, u, f, c, s, n, m chacune au plus une fois.\n");
     }
     return true;
     // die("L'option est valide.\n");
@@ -703,6 +884,7 @@ if (strpos($argv[1], 's') !== false || $argv[1] == "-a") {
     echo "Adding slide...\n";
     add_slide($conn, $argv[2]);
 }
-if (strpos($argv[1], 'f') !== false) {
-    get_posts($conn, $argv[2]);
+if (strpos($argv[1], 'm') !== false) {
+    maj($conn, $argv[2], $argv[6]);
+    // var_dump($argv);
 }
