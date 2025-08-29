@@ -48,6 +48,22 @@ function get_posts($bdd, $dossier, $post_type=''){
     $bdd->exec($reqGetPosts);
 }
 
+
+function get_lastPosts($bdd, $dossier, $nb) {
+    if (file_exists("/var/lib/mysql-files/$dossier/maj/lastsPosts.csv")) {
+        unlink("/var/lib/mysql-files/$dossier/new_posts.csv");
+    }
+
+    $reqLastPosts = "SELECT id
+        FROM `hr8qI_posts`
+        ORDER BY id DESC
+        LIMIT $nb
+        INTO OUTFILE '/var/lib/mysql-files/$dossier/lastsPosts.csv'
+        FIELDS TERMINATED BY ','
+        LINES TERMINATED BY '\\n'";
+    $bdd->exec($reqLastPosts);
+}
+
 /**
  * Récup en bdd les postmeta.
  * 
@@ -343,10 +359,10 @@ function add_usermeta($bdd, $dossier){
  *
  * @return void
  */
-function add_posts($bdd, $dossier){
+function add_posts($bdd, $dossier, $file='old_posts.csv'){
     change_authorId($dossier);
 
-    $reqPushPost = "LOAD DATA INFILE '/var/lib/mysql-files/$dossier/old_posts.csv'
+    $reqPushPost = "LOAD DATA INFILE '/var/lib/mysql-files/$dossier/$file'
         INTO TABLE `hr8qI_posts`
         FIELDS TERMINATED BY ',' 
         OPTIONALLY ENCLOSED BY '\"'
@@ -646,7 +662,14 @@ function addHeaders($fileHeaders, $filename, $bdd, $dossier) {
 
         $file = "./$dossier/maj/new_posts.csv";
         $contenu = file_get_contents("/var/lib/mysql-files/$dossier/maj_posts.csv");
-    } else {
+    } elseif ($filename == 'users') {
+        if (file_exists("./$dossier/maj/new_users.csv")) {
+            unlink("./$dossier/maj/new_users.csv");
+        }
+
+        $file = "./$dossier/maj/new_users.csv";
+        $contenu = file_get_contents("/var/lib/mysql-files/$dossier/new_users.csv");
+    }else {
         if (file_exists("./$dossier/maj/new_postmeta.csv")) {
             unlink("./$dossier/maj/new_postmeta.csv");
         }
@@ -666,12 +689,11 @@ function addHeaders($fileHeaders, $filename, $bdd, $dossier) {
  * 
  * @return array Tableau des données
  */
-function csvToTab($filename) {
-    echo $filename;
+function csvToTab($filename, $separateur=';') {
     $data = [];
     if (($handle = fopen($filename, "r")) !== FALSE) {
-        $headers = fgetcsv($handle, null, ";");
-        while (($row = fgetcsv($handle, null, ";"))) {
+        $headers = fgetcsv($handle, null, $separateur);
+        while (($row = fgetcsv($handle, null, $separateur))) {
             $data[] = array_combine($headers, $row);
         }
         fclose($handle);
@@ -688,7 +710,11 @@ function csvToTab($filename) {
  * @return void
 */
 function tabToCsv($tab, $name) {
-    $file = fopen($name, 'w');
+    if (file_exists($name)) {
+        unlink($name);
+    }
+
+    $file = fopen($name, 'x');
     $cpt = 0;
 
     foreach ($tab as $ligne) {
@@ -699,6 +725,33 @@ function tabToCsv($tab, $name) {
         fputcsv($file, $ligne);
     }
     fclose($file);
+}
+
+
+function changeAuthor($dossier, $tabToChaneg, $bdd) {
+    $result = [];
+    $old_users = csvToTab("/var/lib/mysql-files/$dossier/old_users.csv", ',');
+
+    addHeaders("ID,user_email", 'users', $bdd, $dossier);
+    $new_users = csvToTab("./$dossier/maj/new_users.csv", ',');
+
+    foreach ($tabToChaneg as $data) {
+        // var_dump($data['post_author']);
+        $cle_old = array_search($data['post_author'], array_column($old_users, 'ID'));
+        // var_dump($old_users[$cle_old]['user_email']);
+        
+        if ($cle_old) {
+            $cle_new = array_search($old_users[$cle_old]['user_email'], array_column($new_users, 'user_email'));
+            // var_dump($new_users[$cle_new]['ID']);
+            if ($cle_new) {
+                $ligne = $data;
+                $ligne['post_author'] = $new_users[$cle_new]['ID'];
+                $result[] = $ligne;
+            }
+        }
+        // echo "\n";
+    }
+    return $result;
 }
 
 /**
@@ -743,7 +796,6 @@ function checkAction($posts1, $posts2, $date) {
             }
         } else {
             $add = $p1;
-            unset($add['ID']);
             $postsAdd[$p1['ID']] = $add;
             $mapId[$p1['ID']] = "nouveau";
         }
@@ -758,7 +810,7 @@ function checkAction($posts1, $posts2, $date) {
 
 
 function maj($bdd, $dossier, $date) {
-    $postsV1 = csvToTab("./test/hr8qI_posts.csv");
+    $postsV1 = csvToTab("./$dossier/maj/posts.csv");
     echo "\n\nPassage au 2\n";
 
     $headers = "ID;post_date;post_title;post_type";
@@ -767,17 +819,21 @@ function maj($bdd, $dossier, $date) {
     $postsV2 = csvToTab("./$dossier/maj/new_posts.csv");
 
     echo "\n\n";
-    // $actions = checkAction($postsV1, $postsV2, $date);
-    // var_dump($actions);
+    $actions = checkAction($postsV1, $postsV2, $date);
+    var_dump($actions);
 
-    // tabToCsv($actions['add'], "./$dossier/maj/postsToAdd.csv");
-    // tabToCsv($actions['modif'], "./$dossier/maj/postsToUpdate.csv");
+    tabToCsv($actions['add'], "/var/lib/mysql-files/$dossier/maj/postsToAdd.csv");
+    tabToCsv($actions['modif'], "/var/lib/mysql-files/$dossier/maj/postsToUpdate.csv");
 
-    // try {
-    //     add_posts()
-    // } catch (\Throwable $th) {
-    //     //throw $th;
-    // }
+    try {
+        echo "\n\n";
+        $actions['add'] = changeAuthor($dossier, $actions['add'], $bdd);
+
+        add_posts($bdd, $dossier, 'maj/postToAdd.csv');
+        get_lastPosts($bdd, $dossier, count($actions['add']));
+    } catch (\Throwable $th) {
+        throw $th;
+    }
 }
 
 

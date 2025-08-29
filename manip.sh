@@ -179,6 +179,11 @@ if contains_char_once "n"; then
     DATE=$6
 fi
 if contains_char_once 'm'; then
+# Check if the forminator directory exists
+    if [ ! -d "/var/lib/mysql-files/$NAME_SITE/maj" ]; then
+        echo "Creating directory /var/lib/mysql-files/$NAME_SITE/maj"
+        mkdir -p /var/lib/mysql-files/$NAME_SITE/maj
+    fi
     DATE=$6
 fi
 
