@@ -51,14 +51,14 @@ function get_posts($bdd, $dossier, $post_type=''){
 
 function get_lastPosts($bdd, $dossier, $nb) {
     if (file_exists("/var/lib/mysql-files/$dossier/maj/lastsPosts.csv")) {
-        unlink("/var/lib/mysql-files/$dossier/new_posts.csv");
+        unlink("/var/lib/mysql-files/$dossier/maj/new_posts.csv");
     }
 
     $reqLastPosts = "SELECT id
         FROM `hr8qI_posts`
         ORDER BY id DESC
         LIMIT $nb
-        INTO OUTFILE '/var/lib/mysql-files/$dossier/lastsPosts.csv'
+        INTO OUTFILE '/var/lib/mysql-files/$dossier/maj/lastsPosts.csv'
         FIELDS TERMINATED BY ','
         LINES TERMINATED BY '\\n'";
     $bdd->exec($reqLastPosts);
@@ -829,7 +829,7 @@ function maj($bdd, $dossier, $date) {
         echo "\n\n";
         $actions['add'] = changeAuthor($dossier, $actions['add'], $bdd);
 
-        add_posts($bdd, $dossier, 'maj/postToAdd.csv');
+        add_posts($bdd, $dossier, 'maj/postsToAdd.csv');
         get_lastPosts($bdd, $dossier, count($actions['add']));
     } catch (\Throwable $th) {
         throw $th;
