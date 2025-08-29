@@ -637,7 +637,7 @@ function addHeaders($fileHeaders, $filename, $bdd, $dossier) {
         $reqGetPosts = "SELECT ID, post_date, post_title, post_type
             FROM `hr8qI_posts`
             INTO OUTFILE '/var/lib/mysql-files/$dossier/maj_posts.csv'
-            FIELDS TERMINATED BY ','
+            FIELDS TERMINATED BY ';'
             ENCLOSED BY '\"'
             ESCAPED BY '\"'
             LINES TERMINATED BY '\\n'";
@@ -671,9 +671,8 @@ function csvToTab($filename) {
     $data = [];
     if (($handle = fopen($filename, "r")) !== FALSE) {
         $headers = fgetcsv($handle, null, ";");
-        while (($row = fgetcsv($handle, null, "\n"))) {
-            var_dump($row);
-            $data[] = array_combine(explode(';',$headers[0]), $row);
+        while (($row = fgetcsv($handle, null, ";"))) {
+            $data[] = array_combine($headers, $row);
         }
         fclose($handle);
     }
@@ -762,7 +761,7 @@ function maj($bdd, $dossier, $date) {
     $postsV1 = csvToTab("./test/hr8qI_posts.csv");
     echo "\n\nPassage au 2\n";
 
-    $headers = "ID,post_date,post_title,post_type";
+    $headers = "ID;post_date;post_title;post_type";
     addHeaders($headers, 'posts', $bdd, $dossier);
 
     $postsV2 = csvToTab("./$dossier/maj/new_posts.csv");
