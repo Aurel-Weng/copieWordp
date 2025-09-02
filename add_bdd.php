@@ -48,7 +48,15 @@ function get_posts($bdd, $dossier, $post_type=''){
     $bdd->exec($reqGetPosts);
 }
 
-
+/**
+ * Récupère les derniers post et les enregistre dans un fichier csv
+ * 
+ * @param string $bdd Connexion à la bdd
+ * @param string $dossier Nom du dossier ou enregistrer le fichier csv
+ * @param int $nb Nombre de posts à récupérer
+ * 
+ * @return void
+ */
 function get_lastPosts($bdd, $dossier, $nb) {
     if (file_exists("/var/lib/mysql-files/$dossier/maj/lastsPosts.csv")) {
         unlink("/var/lib/mysql-files/$dossier/maj/new_posts.csv");
@@ -396,6 +404,27 @@ function add_posts($bdd, $dossier, $file='old_posts.csv'){
 }
 
 /**
+ * Update les posts.
+ * 
+ * @param array $tabToUpdate Tableau contenant les infos a mettre à jour
+ * @param string $bdd 
+ */
+function updatePost($tabToUpdate, $bdd) {
+    foreach ($tabToUpdate as $data) {
+        $id = $data['ID'];
+        unset($data['ID']);
+
+        $sets = [];
+        foreach ($data as $key => $value) {
+            $sets[] = "$key = '". addslashes($value) ."'";
+        }
+
+        $reqUpdatePosts = "UPDATE hr8qI_posts SET ". implode(', ', $sets) ." WHERE ID = $id";
+        $bdd->exec($reqUpdatePosts);
+    }
+}
+
+/**
  * Met à jour les données des posts/postmeta si la date de modification est plus récente.
  *
  * @param string $bdd Nom de la bdd.
@@ -403,7 +432,7 @@ function add_posts($bdd, $dossier, $file='old_posts.csv'){
  *
  * @return void
  */
-function updatePostData($bdd, $dossier) {
+/*function updatePostData($bdd, $dossier) {
     $lastPostsFile = fopen("/var/lib/mysql-files/$dossier/last_posts.csv", "r");
     $newPostsFile = fopen("/var/lib/mysql-files/$dossier/new_posts.csv", "r");
 
@@ -428,7 +457,7 @@ function updatePostData($bdd, $dossier) {
         }
     }
 
-}
+}*/
 
 /**
  * Ajoute en bdd les postmeta.
@@ -639,7 +668,16 @@ function add_slide($bdd, $dossier) {
 }
 
 
-
+/**
+ * Rajoute le header sur un fichier csv
+ *
+ * @param string $filHeaders Header à rajouter
+ * @param string $filename Nom du fichier à créer
+ * @param string $bdd Connexion à la bdd
+ * @param string $dossier Nom du dossier où enregistrer le fichier
+ *
+ * @return void
+ */
 function addHeaders($fileHeaders, $filename, $bdd, $dossier) {
     if ($filename == 'posts') {
         if (file_exists("./$dossier/maj/maj_posts.csv")) {
@@ -727,15 +765,23 @@ function tabToCsv($tab, $name) {
     fclose($file);
 }
 
-
-function changeAuthor($dossier, $tabToChaneg, $bdd) {
+/**
+ * Change l'id des auteurs dans mon tableau et créer un fichier csv.
+ * 
+ * @param string $dossier Nom du dossier ou enregistrer le fichier csv
+ * @param array $tabToChange Tableau contenant les données dont l'author_id
+ * @param string $bdd Connexion à la bdd pour une fonction
+ * 
+ * @return array $result Tableau avec author_id modifié
+ */
+function changeAuthor($dossier, $tabToChange, $bdd) {
     $result = [];
     $old_users = csvToTab("/var/lib/mysql-files/$dossier/old_users.csv", ',');
 
     addHeaders("ID,user_email", 'users', $bdd, $dossier);
     $new_users = csvToTab("./$dossier/maj/new_users.csv", ',');
 
-    foreach ($tabToChaneg as $data) {
+    foreach ($tabToChange as $data) {
         // var_dump($data['post_author']);
         $cle_old = array_search($data['post_author'], array_column($old_users, 'ID'));
         // var_dump($old_users[$cle_old]['user_email']);
@@ -809,6 +855,28 @@ function checkAction($posts1, $posts2, $date) {
 }
 
 
+function mapIdUpdate($tabToUpdate, $dossier) {
+    $file = fopen("/var/lib/mysql-files/$dossier/maj/lastsPosts.csv", 'r');
+    $ids = [];
+    $tab = [];
+
+    while ($row = fgetcsv($file, null, ',')) {
+        $ids[] = $row[0];
+    }
+    $ids = array_reverse($ids);
+
+    $cpt = 0;
+    foreach ($tabToUpdate as $key => $value) {
+        if ($value === "nouveau") {
+            $tab[$key] = $ids[$cpt];
+            $cpt++;
+        } else {
+            $tab[$key] = $value;
+        }
+    }
+    return $tab;
+}
+
 function maj($bdd, $dossier, $date) {
     $postsV1 = csvToTab("./$dossier/maj/posts.csv");
     echo "\n\nPassage au 2\n";
@@ -825,12 +893,24 @@ function maj($bdd, $dossier, $date) {
     tabToCsv($actions['add'], "/var/lib/mysql-files/$dossier/maj/postsToAdd.csv");
     tabToCsv($actions['modif'], "/var/lib/mysql-files/$dossier/maj/postsToUpdate.csv");
 
+    // Ajout des id des post Add pour voir si le code fonctionne entièrement, A SUPP
+    $actions['map']['506'] = 'nouveau';
+    $actions['map']['507'] = 'nouveau';
+    $actions['map']['508'] = 'nouveau';
+    $actions['map']['509'] = 'nouveau';
+    $actions['map']['510'] = 'nouveau';
+    var_dump($actions);
+
     try {
         echo "\n\n";
-        $actions['add'] = changeAuthor($dossier, $actions['add'], $bdd);
+        // $actions['add'] = changeAuthor($dossier, $actions['add'], $bdd);
 
-        add_posts($bdd, $dossier, 'maj/postsToAdd.csv');
-        get_lastPosts($bdd, $dossier, count($actions['add']));
+        // add_posts($bdd, $dossier, 'maj/postsToAdd.csv');
+        // get_lastPosts($bdd, $dossier, count($actions['add']));
+
+        $actions['map'] = mapIdUpdate($actions['map'], $dossier);
+        var_dump($actions);
+        // updatePost($actions['modif'], $bdd);
     } catch (\Throwable $th) {
         throw $th;
     }
