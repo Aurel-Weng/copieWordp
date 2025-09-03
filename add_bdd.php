@@ -59,7 +59,7 @@ function get_posts($bdd, $dossier, $post_type=''){
  */
 function get_lastPosts($bdd, $dossier, $nb) {
     if (file_exists("/var/lib/mysql-files/$dossier/maj/lastsPosts.csv")) {
-        unlink("/var/lib/mysql-files/$dossier/maj/new_posts.csv");
+        unlink("/var/lib/mysql-files/$dossier/maj/lastsPosts.csv");
     }
 
     $reqLastPosts = "SELECT id
@@ -73,24 +73,29 @@ function get_lastPosts($bdd, $dossier, $nb) {
 }
 
 /**
- * Récup en bdd les postmeta.
+ * Récup en bdd les postmeta pour update.
  * 
  * Crée un fichier new_postmeta.csv avec les postmeta de la bdd.
  *
  * @param string $bdd Nom de la bdd.
  * @param string $dossier Nom du dossier ou se trouve.
+ * @param array $ids Liste des ids dont il faut récupérer les meta
  *
  * @return void
  */
-function get_postsMeta($bdd, $dossier) {
+function get_postsMeta($bdd, $dossier, $ids) {
     if (file_exists("/var/lib/mysql-files/$dossier/new_postmeta.csv")) {
         unlink("/var/lib/mysql-files/$dossier/new_postmeta.csv");
     }
 
+    $getIds = implode(',', $ids);
+
     $reqGetPostMeta = "SELECT *
         FROM `hr8qI_postmeta`
+        WHERE post_id IN ($getIds)
         INTO OUTFILE '/var/lib/mysql-files/$dossier/new_postmeta.csv'
-        FIELDS TERMINATED BY ','
+        FIELDS TERMINATED BY ';'
+        ENCLOSED BY '\"'
         LINES TERMINATED BY '\\n'";
     $bdd->exec($reqGetPostMeta);
 }
@@ -413,6 +418,7 @@ function updatePost($tabToUpdate, $bdd) {
     foreach ($tabToUpdate as $data) {
         $id = $data['ID'];
         unset($data['ID']);
+        unset($data['post_author']);
 
         $sets = [];
         foreach ($data as $key => $value) {
@@ -425,39 +431,28 @@ function updatePost($tabToUpdate, $bdd) {
 }
 
 /**
- * Met à jour les données des posts/postmeta si la date de modification est plus récente.
- *
- * @param string $bdd Nom de la bdd.
- * @param string $dossier Nom du dossier ou se trouve.
- *
+ * Update les meta.
+ * 
+ * @param array $tabToUpdate Tableau contenant les valeurs
+ * @param string $bdd Connexion à la bdd
+ * 
  * @return void
  */
-/*function updatePostData($bdd, $dossier) {
-    $lastPostsFile = fopen("/var/lib/mysql-files/$dossier/last_posts.csv", "r");
-    $newPostsFile = fopen("/var/lib/mysql-files/$dossier/new_posts.csv", "r");
+function updateMeta($tabToUpdate, $bdd) {
+    foreach ($tabToUpdate as $data) {
+        unset($data['meta_id']);
+        $post = $data['post_id'];
+        $name = $data['meta_key'];
 
-    $updatedPostsFile = fopen("/var/lib/mysql-files/$dossier/updated_posts.csv", "w");
-    $addPostFile = fopen("/var/lib/mysql-files/$dossier/add_posts.csv", "w");
-
-    $postsToUpdate = [];
-    $postsToAdd = [];
-
-    fgetcsv($lastPostsFile, 0, ',');
-
-    while ($oldPost = fgetcsv($lastPostsFile, 0, ',')) {
-        $lastPostData = explode(',', $oldPost[0]);
-        $postsToAdd[] = $lastPostData[0];
-
-        while ($newPost = fgetcsv($newPostsFile, 0, ',')) {
-            $newPostData = explode(',', $newPost[0]);
-
-            if (strcasecmp(trim($newPostData[2], '"'), trim($lastPostData[2], '"')) == 0 && strcasecmp(trim($newPostData[5], '"'), trim($lastPostData[5], '"')) == 0 && strcasecmp(trim($newPostData[11], '"'), trim($lastPostData[11], '"')) == 0) {
-                $postsToUpdate[$newPostData[0]] = $lastPostData[0];
-            }
+        $sets = [];
+        foreach ($data as $key => $value) {
+            $sets[] = "$key = '". addslashes($value) ."'";
         }
-    }
 
-}*/
+        $reqUpdateMeta = "UPDATE hr8qI_postmeta SET ". implode(', ', $sets) ." WHERE post_id = $post AND meta_key = '$name'";
+        $bdd->exec($reqUpdateMeta);
+    }
+}
 
 /**
  * Ajoute en bdd les postmeta.
@@ -467,10 +462,9 @@ function updatePost($tabToUpdate, $bdd) {
  *
  * @return void
  */
-function add_postmeta($bdd, $dossier){
-    change_idPostMeta($dossier, 'postmeta');
+function add_postmeta($bdd, $dossier, $file='postmeta.csv'){
 
-    $reqPushPostMeta = "LOAD DATA INFILE '/var/lib/mysql-files/$dossier/postmeta.csv'
+    $reqPushPostMeta = "LOAD DATA INFILE '/var/lib/mysql-files/$dossier/$file'
         INTO TABLE `hr8qI_postmeta`
         FIELDS TERMINATED BY ',' 
         OPTIONALLY ENCLOSED BY '\"'
@@ -684,7 +678,6 @@ function addHeaders($fileHeaders, $filename, $bdd, $dossier) {
             unlink("./$dossier/maj/maj_posts.csv");
         }
 
-        // get_posts($bdd, $dossier);
         if (file_exists("/var/lib/mysql-files/$dossier/maj_posts.csv")) {
             unlink("/var/lib/mysql-files/$dossier/maj_posts.csv");
         }
@@ -712,7 +705,6 @@ function addHeaders($fileHeaders, $filename, $bdd, $dossier) {
             unlink("./$dossier/maj/new_postmeta.csv");
         }
 
-        get_postsMeta($bdd, $dossier);
         $file = "./$dossier/maj/new_postmeta.csv";
         $contenu = file_get_contents("/var/lib/mysql-files/$dossier/new_postmeta.csv");
     }
@@ -782,20 +774,16 @@ function changeAuthor($dossier, $tabToChange, $bdd) {
     $new_users = csvToTab("./$dossier/maj/new_users.csv", ',');
 
     foreach ($tabToChange as $data) {
-        // var_dump($data['post_author']);
         $cle_old = array_search($data['post_author'], array_column($old_users, 'ID'));
-        // var_dump($old_users[$cle_old]['user_email']);
         
         if ($cle_old) {
             $cle_new = array_search($old_users[$cle_old]['user_email'], array_column($new_users, 'user_email'));
-            // var_dump($new_users[$cle_new]['ID']);
             if ($cle_new) {
                 $ligne = $data;
                 $ligne['post_author'] = $new_users[$cle_new]['ID'];
                 $result[] = $ligne;
             }
         }
-        // echo "\n";
     }
     return $result;
 }
@@ -854,7 +842,14 @@ function checkAction($posts1, $posts2, $date) {
     ];
 }
 
-
+/**
+ * Met à jour les ids suite à l'ajout des posts.
+ * 
+ * @param array $tabToUpdate Map qui subit le changement d'id
+ * @param string $dossier Nom du dossier pour récupérer un fichier
+ * 
+ * @return array Map avec les modifications
+ */
 function mapIdUpdate($tabToUpdate, $dossier) {
     $file = fopen("/var/lib/mysql-files/$dossier/maj/lastsPosts.csv", 'r');
     $ids = [];
@@ -877,7 +872,49 @@ function mapIdUpdate($tabToUpdate, $dossier) {
     return $tab;
 }
 
+/**
+ * Tri les meta (update et insert) et change les post_id.
+ * 
+ * @param array $tabData Données des meta
+ * @param array $actions Tableau pour savoir comment trier
+ * @param string $dossier Nom du dossier pour récupérer les fichiers
+ * 
+ * @return array Tableau avec les données trier.
+ */
+function triDataAndChangeIdMeta($tabData, $actions, $dossier) {
+    $toAdd = [];
+    $toUpdate = [];
+
+    foreach ($tabData as $key => $value) {
+        if (array_key_exists((int)$value['post_id'], $actions['map'])) {
+            $id = $actions['map'][$value['post_id']];
+
+            $data = $value;
+            $data['post_id'] = $id;
+            if (in_array($id, array_column($actions['modif'], 'ID'))) {
+                $toUpdate[] = $data;
+            } else {
+                $toAdd[] = $data;
+            }
+        }
+    }
+    return [
+        "add" => $toAdd,
+        "modif" => $toUpdate
+    ];
+}
+
+/**
+ * Met à jour les données des posts et postmeta
+ * 
+ * @param string $bdd Connexion à la bdd
+ * @param string $dossier Nom du dossier contenant les fichiers
+ * @param string $date Date de comparaison pour savoir si add/modif
+ * 
+ * @return void
+ */
 function maj($bdd, $dossier, $date) {
+    // je récup les données et les mets en tab
     $postsV1 = csvToTab("./$dossier/maj/posts.csv");
     echo "\n\nPassage au 2\n";
 
@@ -886,31 +923,44 @@ function maj($bdd, $dossier, $date) {
 
     $postsV2 = csvToTab("./$dossier/maj/new_posts.csv");
 
-    echo "\n\n";
+    // Regader s'il y a des ajout ou modif à faire
     $actions = checkAction($postsV1, $postsV2, $date);
     var_dump($actions);
 
+    // Change les auteurs des posts
+    $actions['add'] = changeAuthor($dossier, $actions['add'], $bdd);
+
+    // Transforme le tableau contenant les données des posts a add/modif en 2 fichiers csv
     tabToCsv($actions['add'], "/var/lib/mysql-files/$dossier/maj/postsToAdd.csv");
     tabToCsv($actions['modif'], "/var/lib/mysql-files/$dossier/maj/postsToUpdate.csv");
 
-    // Ajout des id des post Add pour voir si le code fonctionne entièrement, A SUPP
-    $actions['map']['506'] = 'nouveau';
-    $actions['map']['507'] = 'nouveau';
-    $actions['map']['508'] = 'nouveau';
-    $actions['map']['509'] = 'nouveau';
-    $actions['map']['510'] = 'nouveau';
-    var_dump($actions);
-
     try {
-        echo "\n\n";
-        // $actions['add'] = changeAuthor($dossier, $actions['add'], $bdd);
-
-        // add_posts($bdd, $dossier, 'maj/postsToAdd.csv');
-        // get_lastPosts($bdd, $dossier, count($actions['add']));
+        // Effectue les actions en bdd
+        add_posts($bdd, $dossier, 'maj/postsToAdd.csv');
+        get_lastPosts($bdd, $dossier, count($actions['add']));
 
         $actions['map'] = mapIdUpdate($actions['map'], $dossier);
         var_dump($actions);
-        // updatePost($actions['modif'], $bdd);
+
+        updatePost($actions['modif'], $bdd);
+
+        $ids = array_unique(array_column($actions['modif'], 'ID'));
+
+        // Récup les données des postmeta
+        get_postsMeta($bdd, $dossier, $ids);
+        $headers = "meta_id;post_id;meta_key;meta_value";
+        addHeaders($headers, 'postmeta', $bdd, $dossier);
+
+        $metaV2 = csvToTab("./$dossier/maj/postmeta.csv");
+
+        $action2 = triDataAndChangeIdMeta($metaV2, $actions, $dossier);
+
+        // Transforme les tabs en csv et effectue les actions en bdd
+        tabToCsv($action2['add'], "/var/lib/mysql-files/$dossier/maj/metaToAdd.csv");
+        tabToCsv($action2['modif'], "/var/lib/mysql-files/$dossier/maj/metaToModif.csv");
+
+        add_postmeta($bdd, $dossier, 'maj/metaToAdd.csv');
+        updateMeta($action2['modif'], $bdd);
     } catch (\Throwable $th) {
         throw $th;
     }
@@ -982,6 +1032,7 @@ if (strpos($argv[1], 'p') !== false || $argv[1] == "-a") {
     get_posts($conn, $argv[2], "attachment");
 
     echo "Adding postmeta...\n";
+    change_idPostMeta($dossier, 'postmeta');
     add_postmeta($conn, $argv[2]);
 }
 if (strpos($argv[1], 'u') !== false || $argv[1] == "-a" ) {
@@ -1021,5 +1072,4 @@ if (strpos($argv[1], 's') !== false || $argv[1] == "-a") {
 }
 if (strpos($argv[1], 'm') !== false) {
     maj($conn, $argv[2], $argv[6]);
-    // var_dump($argv);
 }

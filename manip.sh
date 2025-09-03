@@ -19,7 +19,7 @@
 # -f : To change the post_id and add all forminator's data
 # -c : To change the post_id and add all contest's data
 # -s : To change the post_id and add all slide's data
-
+# -m : Mise à jour des données posts
 
 # /var/lib/mysql-files/$NAME_SITE/
 
@@ -42,6 +42,7 @@ if [ "$#" -eq 0 ] || ( [ "$#" -eq 1 ] && [ "$1" == "-h" ] ); then
     echo "-c : To change the post_id and add all contest's data"
     echo "-s : To change the post_id and add all slide's data"
     echo "-n : To update last posts before pushing the new version"
+    echo "-m : To update all posts/postmeta data for deployement"
     echo "-a : All options together (u, p, f, c, s)"
     echo "Put date in format DD-MM-YYYY only if the option chosen is -n"
     exit 0
