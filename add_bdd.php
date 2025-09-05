@@ -801,8 +801,21 @@ function trouverPostCorrespondant($postV1, $postsV2) {
             $postV1['post_type'] === $postV2['post_type']) {
             return $postV2;
         }
+        // echo $postV1['post_date']." === ".$postV2['post_date']." --- ".$postV1['post_title']." === ".$postV2['post_title']." --- ".$postV1['post_type']." === ".$postV2['post_type']."\n";
     }
+    // die;
     return null;
+}
+
+function changeDate($tabToChange) {
+    $result = $tabToChange;
+    if ($tabToChange['post_date_gmt'] === "0000-00-00 00:00:00") {
+        $result['post_date_gmt'] = $tabToChange['post_date'];
+    }
+    if ($tabToChange['post_modified_gmt'] === "0000-00-00 00:00:00") {
+        $result['post_modified_gmt'] = $tabToChange['post_modified'];
+    }
+    return $result;
 }
 
 /**
@@ -824,12 +837,12 @@ function checkAction($posts1, $posts2, $date) {
             if ($p1['post_modified'] > $date) {
                 $mapId[$p1['ID']] = $egaux['ID'];
 
-                $modif = $p1;
+                $modif = changeDate($p1);
                 $modif['ID'] = $egaux['ID'];
                 $postsModif[] = $modif;
             }
-        } else {
-            $add = $p1;
+        } else if($p1['post_date'] > $date){
+            $add = changeDate($p1);
             $postsAdd[$p1['ID']] = $add;
             $mapId[$p1['ID']] = "nouveau";
         }
