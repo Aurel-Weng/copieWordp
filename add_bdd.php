@@ -1045,7 +1045,7 @@ if (strpos($argv[1], 'p') !== false || $argv[1] == "-a") {
     get_posts($conn, $argv[2], "attachment");
 
     echo "Adding postmeta...\n";
-    change_idPostMeta($dossier, 'postmeta');
+    change_idPostMeta($argv[2], 'postmeta');
     add_postmeta($conn, $argv[2]);
 }
 if (strpos($argv[1], 'u') !== false || $argv[1] == "-a" ) {
